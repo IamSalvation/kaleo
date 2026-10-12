@@ -1,0 +1,100 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0B1020" />
+  <title>Kaleo — Called. Connected.</title>
+  <link rel="icon" type="image/svg+xml" href="logos/kaleo.svg" />
+  <link rel="apple-touch-icon" href="logos/kaleo.png" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- ============ JOIN SCREEN ============ -->
+  <div id="joinScreen" class="screen center">
+    <div class="join-card">
+      <div class="logo-big">
+      <img src="logos/kaleo.svg" alt="Kaleo" width="96" height="96" />
+    </div>
+      <h1 class="logo-text">Kaleo</h1>
+      <p class="tagline">Called. Connected.</p>
+
+      <label class="label">Your name</label>
+      <input id="myName" class="input" placeholder="e.g. alice" />
+      <button id="registerBtn" class="btn btn-primary">Enter Kaleo</button>
+
+      <p class="footnote">Encrypted peer-to-peer · Low data · High quality</p>
+    </div>
+  </div>
+
+  <!-- ============ CALL SCREEN ============ -->
+  <div id="callScreen" class="screen" hidden>
+    <header class="app-header">
+      <div class="header-left">
+        <img src="logos/kaleo.svg" alt="Kaleo" width="28" height="28" />
+        <span class="brand">Kaleo</span>
+      </div>
+      <div class="header-right">
+        <span id="statusDot" class="status-dot"></span>
+        <span id="statusText" class="status-text">idle</span>
+      </div>
+    </header>
+
+    <main class="main">
+      <div id="dialPanel" class="dial-panel">
+        <h2 class="dial-title">Ready to call</h2>
+        <p class="dial-sub">Enter who you want to reach</p>
+        <input id="peerName" class="input" placeholder="Peer name (e.g. bob)" />
+        <div class="btn-row">
+          <button id="videoCallBtn" class="btn btn-primary">📹 Video</button>
+          <button id="voiceCallBtn" class="btn btn-secondary">📞 Voice</button>
+        </div>
+      </div>
+
+      <div id="videoGrid" class="video-grid" hidden>
+        <div class="video-tile">
+          <video id="localVideo" autoplay muted playsinline></video>
+          <span class="tile-label">You</span>
+        </div>
+        <div class="video-tile">
+          <video id="remoteVideo" autoplay playsinline></video>
+          <span id="remoteLabel" class="tile-label">Peer</span>
+        </div>
+      </div>
+    </main>
+
+    <footer id="controlsBar" class="controls" hidden>
+      <button id="muteBtn" class="ctrl-btn">🎤</button>
+      <button id="camBtn" class="ctrl-btn">📹</button>
+      <button id="hangupBtn" class="ctrl-btn ctrl-danger">End</button>
+    </footer>
+  </div>
+
+  <!-- ============ INCOMING CALL MODAL ============ -->
+  <div id="incomingModal" class="modal" hidden>
+    <div class="modal-card">
+      <div class="pulse-wrap">
+        <span class="pulse-ring"></span>
+        <div class="pulse-core">
+          <img src="logos/kaleo.svg" alt="Kaleo" width="48" height="48" />
+        
+        </div>
+      </div>
+      <h2 class="modal-title">Kaleo Call</h2>
+      <p class="modal-sub"><span id="callerName" class="caller-name"></span> is calling</p>
+      <div class="btn-row">
+        <button id="declineBtn" class="btn btn-danger">Decline</button>
+        <button id="acceptBtn" class="btn btn-success">Accept</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
+

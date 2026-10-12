@@ -1,0 +1,441 @@
+﻿/* ============================================================
+   KALEO — Style Sheet
+   Brand colors matched to logo:
+     Navy:   #0F1B47
+     Blue:   #2563EB
+     Purple: #7C3AED
+   ============================================================ */
+
+/* Force hidden elements to stay hidden */
+[hidden] {
+  display: none !important;
+}
+
+/* ============ RESET & BASE ============ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --kaleo-bg: #0B1020;
+  --kaleo-surface: #131A2E;
+  --kaleo-border: #1F2A44;
+  --kaleo-primary: #2563EB;         /* Logo blue */
+  --kaleo-primary-hover: #1D4ED8;
+  --kaleo-accent: #7C3AED;          /* Logo purple */
+  --kaleo-danger: #EF4444;
+  --kaleo-danger-hover: #DC2626;
+  --kaleo-success: #22C55E;
+  --kaleo-success-hover: #16A34A;
+  --kaleo-muted: #94A3B8;
+  --kaleo-navy: #0F1B47;            /* Logo deep navy */
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--kaleo-bg);
+  color: #fff;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100vh;
+}
+
+.screen.center {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* ============ JOIN SCREEN ============ */
+.join-card {
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.logo-big {
+  margin: 0 auto 8px;
+  animation: float 3s ease-in-out infinite;
+}
+
+.logo-big img {
+  display: block;
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.logo-text {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #0F1B47 0%, #2563EB 50%, #7C3AED 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.tagline {
+  color: var(--kaleo-muted);
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+
+.label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--kaleo-muted);
+  text-align: left;
+  margin-bottom: 4px;
+}
+
+.input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--kaleo-surface);
+  border: 1px solid var(--kaleo-border);
+  color: #fff;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  font-family: inherit;
+}
+
+.input:focus {
+  border-color: var(--kaleo-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+.input::placeholder { color: #64748B; }
+
+.btn {
+  padding: 14px 20px;
+  border-radius: 12px;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: #fff;
+}
+
+.btn-primary { background: var(--kaleo-primary); }
+.btn-primary:hover {
+  background: var(--kaleo-primary-hover);
+  transform: translateY(-1px);
+}
+.btn-primary:active { transform: translateY(0); }
+
+.btn-secondary {
+  background: var(--kaleo-surface);
+  border: 1px solid var(--kaleo-border);
+}
+.btn-secondary:hover { border-color: var(--kaleo-accent); }
+
+.btn-danger { background: var(--kaleo-danger); flex: 1; }
+.btn-danger:hover { background: var(--kaleo-danger-hover); }
+
+.btn-success { background: var(--kaleo-success); flex: 1; }
+.btn-success:hover { background: var(--kaleo-success-hover); }
+
+.footnote {
+  font-size: 0.75rem;
+  color: var(--kaleo-muted);
+  margin-top: 12px;
+}
+
+/* ============ APP HEADER ============ */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--kaleo-border);
+  background: var(--kaleo-bg);
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-left img {
+  display: block;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.brand {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--kaleo-muted);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--kaleo-muted);
+  transition: background 0.3s;
+}
+
+.status-dot.connected {
+  background: var(--kaleo-success);
+  box-shadow: 0 0 8px var(--kaleo-success);
+}
+
+.status-dot.calling,
+.status-dot.ringing {
+  background: var(--kaleo-primary);
+  animation: blink 1s infinite;
+}
+
+@keyframes blink { 50% { opacity: 0.4; } }
+
+.status-text { text-transform: capitalize; }
+
+/* ============ MAIN ============ */
+.main {
+  flex: 1;
+  display: flex;
+  padding: 16px;
+  overflow: hidden;
+}
+
+/* ============ DIAL PANEL ============ */
+.dial-panel {
+  width: 100%;
+  max-width: 420px;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dial-title {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.dial-sub {
+  color: var(--kaleo-muted);
+  font-size: 0.9rem;
+  text-align: center;
+  margin-top: -8px;
+  margin-bottom: 8px;
+}
+
+.btn-row { display: flex; gap: 12px; }
+.btn-row .btn { flex: 1; }
+
+/* ============ VIDEO GRID ============ */
+.video-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+}
+
+@media (min-width: 768px) {
+  .video-grid { grid-template-columns: 1fr 1fr; }
+}
+
+.video-tile {
+  position: relative;
+  background: var(--kaleo-surface);
+  border: 1px solid var(--kaleo-border);
+  border-radius: 16px;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  min-height: 0;
+}
+
+.video-tile video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+  display: block;
+}
+
+.tile-label {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* ============ CONTROLS ============ */
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid var(--kaleo-border);
+  background: var(--kaleo-surface);
+  flex-shrink: 0;
+}
+
+.ctrl-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--kaleo-border);
+  color: #fff;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ctrl-btn:hover {
+  background: #334155;
+  transform: scale(1.05);
+}
+
+.ctrl-btn.off { background: var(--kaleo-danger); }
+
+.ctrl-danger {
+  width: auto;
+  padding: 0 24px;
+  border-radius: 28px;
+  background: var(--kaleo-danger);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.ctrl-danger:hover { background: var(--kaleo-danger-hover); }
+
+/* ============ INCOMING CALL MODAL ============ */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 16, 32, 0.95);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 24px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 360px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pulse-wrap {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 16px;
+}
+
+.pulse-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(37, 99, 235, 0.4);
+  animation: pulseRing 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulseRing {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+.pulse-core {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: var(--kaleo-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pulse-core img {
+  display: block;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.modal-title {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.modal-sub {
+  color: var(--kaleo-muted);
+  margin-bottom: 24px;
+}
+
+.caller-name { color: #fff; font-weight: 600; }
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 600px) {
+  .logo-text { font-size: 1.9rem; }
+  .dial-title { font-size: 1.3rem; }
+  .ctrl-btn { width: 52px; height: 52px; }
+  .logo-big img { width: 80px; height: 80px; }
+}
