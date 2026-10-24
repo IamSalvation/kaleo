@@ -128,6 +128,7 @@ function hideCallUI() {
 // ============================================================
 socket.on("connect", () => {
   console.log("✅ Socket connected:", socket.id);
+  // If already in the app, re-register immediately on reconnect
   if (myName && !joinScreen.hidden) {
     socket.emit("register", myName);
     console.log("🔁 Re-registered as:", myName);
@@ -139,6 +140,7 @@ socket.on("disconnect", (reason) => {
   setStatus("offline");
 });
 
+// Keep-alive ping for mobile backgrounding
 setInterval(() => {
   if (socket.connected) socket.emit("ping");
 }, 10000);
@@ -308,7 +310,10 @@ socket.on("ice-candidate", async ({ candidate }) => {
 socket.on("call-ended", () => cleanupCall());
 
 socket.on("user-unavailable", ({ to }) => {
-  alert(to + " is not available or offline.");
+  // Auto-heal: Force our own socket to re-register just in case it dropped
+  if (myName) socket.emit("register", myName);
+
+  alert(to + " is not available or offline. Make sure their tab is open and they clicked 'Enter Kaleo'.");
   cleanupCall();
 });
 
