@@ -50,29 +50,33 @@ let pendingOffer = null;
 let muted = false;
 let camOff = false;
 
-// --- ICE config: STUN + TURN ---
+// --- ICE config: Private Metered TURN (fixes mobile network blocking) ---
 const ICE_CONFIG = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun.relay.metered.ca:80" },
     {
-      // Replace these with your Metered Username and Password
-      urls: "turn:standard.relay.metered.ca:80",
+      urls: "turn:global.relay.metered.ca:80",
       username: "37c57fb8f7f7b17037d93382",
-      credential: "XnV0QcW3yIYC7vxo"
+      credential: "XnV0QcW3yIYC7vxo",
     },
     {
-      urls: "turn:standard.relay.metered.ca:443",
+      urls: "turn:global.relay.metered.ca:80?transport=tcp",
       username: "37c57fb8f7f7b17037d93382",
-      credential: "XnV0QcW3yIYC7vxo"
+      credential: "XnV0QcW3yIYC7vxo",
     },
     {
-      urls: "turn:standard.relay.metered.ca:443?transport=tcp",
+      urls: "turn:global.relay.metered.ca:443",
       username: "37c57fb8f7f7b17037d93382",
-      credential: "XnV0QcW3yIYC7vxo"
-    }
+      credential: "XnV0QcW3yIYC7vxo",
+    },
+    {
+      urls: "turns:global.relay.metered.ca:443?transport=tcp",
+      username: "37c57fb8f7f7b17037d93382",
+      credential: "XnV0QcW3yIYC7vxo",
+    },
   ],
-  iceCandidatePoolSize: 10,
+  // Note: iceCandidatePoolSize is intentionally removed to prevent mobile ICE failures
 };
 
 // ============================================================
@@ -129,7 +133,6 @@ function hideCallUI() {
 // ============================================================
 socket.on("connect", () => {
   console.log("✅ Socket connected:", socket.id);
-  // If already in the app, re-register immediately on reconnect
   if (myName && !joinScreen.hidden) {
     socket.emit("register", myName);
     console.log("🔁 Re-registered as:", myName);
@@ -169,14 +172,20 @@ registerBtn.addEventListener("click", () => {
 // Media
 // ============================================================
 async function getLocalMedia(withVideo = true) {
-  const constraints = {
-    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    video: withVideo ? { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 24 } } : false,
-  };
-  const stream = await navigator.mediaDevices.getUserMedia(constraints);
-  localStream = stream;
-  localVideo.srcObject = stream;
-  return stream;
+  try {
+    const constraints = {
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      video: withVideo ? { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 24 } } : false,
+    };
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    localStream = stream;
+    localVideo.srcObject = stream;
+    localVideo.play().catch(e => console.warn("Local video play error:", e));
+    return stream;
+  } catch (err) {
+    alert("Could not access camera/microphone: " + err.message);
+    throw err;
+  }
 }
 
 // ============================================================
@@ -186,20 +195,28 @@ function createPeerConnection(remoteId) {
   console.log("🔧 Creating RTCPeerConnection for:", remoteId);
   const pc = new RTCPeerConnection(ICE_CONFIG);
 
-  localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+  localStream.getTracks().forEach((track) => {
+    console.log("  ➕ Adding track:", track.kind);
+    pc.addTrack(track, localStream);
+  });
 
   pc.ontrack = (event) => {
+    console.log("📹 Remote track received:", event.track.kind);
     if (remoteVideo.srcObject !== event.streams[0]) {
       remoteVideo.srcObject = event.streams[0];
-      remoteVideo.play().catch((e) => console.warn("play() failed:", e));
+      remoteVideo.play().catch((e) => console.warn("Remote video play error:", e));
     }
   };
 
   pc.onicecandidate = (event) => {
-    if (event.candidate) socket.emit("ice-candidate", { to: remoteId, candidate: event.candidate });
+    if (event.candidate) {
+      console.log("❄️ Sending ICE candidate:", event.candidate.type);
+      socket.emit("ice-candidate", { to: remoteId, candidate: event.candidate });
+    }
   };
 
   pc.onconnectionstatechange = () => {
+    console.log("🔌 PC state:", pc.connectionState);
     if (["failed", "disconnected", "closed"].includes(pc.connectionState)) {
       if (pc.connectionState !== "closed") cleanupCall();
     }
@@ -216,7 +233,7 @@ function createPeerConnection(remoteId) {
         }
       });
     }
-  } catch (e) { }
+  } catch (e) { console.warn("Codec preference failed:", e); }
 
   return pc;
 }
@@ -235,14 +252,16 @@ async function startCall(withVideo) {
   try {
     await getLocalMedia(withVideo);
   } catch (err) {
-    alert("Could not access camera/microphone: " + err.message);
     return;
   }
 
   peerConnection = createPeerConnection(peer);
   const offer = await peerConnection.createOffer();
   await peerConnection.setLocalDescription(offer);
+
+  console.log("📞 Sending call to:", peer);
   socket.emit("call-user", { from: myName, to: peer, offer });
+
   showCallUI();
   setStatus("calling");
 }
@@ -254,6 +273,7 @@ voiceCallBtn.addEventListener("click", () => startCall(false));
 // Incoming call
 // ============================================================
 socket.on("incoming-call", ({ from, offer }) => {
+  console.log("📲 Incoming call from:", from);
   remotePeerName = from;
   pendingOffer = offer;
   callerName.textContent = from;
@@ -269,7 +289,6 @@ acceptBtn.addEventListener("click", async () => {
   try {
     await getLocalMedia(true);
   } catch (err) {
-    alert("Could not access camera/microphone: " + err.message);
     declineCall();
     return;
   }
@@ -278,7 +297,10 @@ acceptBtn.addEventListener("click", async () => {
   await peerConnection.setRemoteDescription(pendingOffer);
   const answer = await peerConnection.createAnswer();
   await peerConnection.setLocalDescription(answer);
+
+  console.log("✅ Sending answer to:", remotePeerName);
   socket.emit("answer-call", { to: remotePeerName, answer });
+
   showCallUI();
   setStatus("connecting");
   pendingOffer = null;
@@ -298,6 +320,7 @@ declineBtn.addEventListener("click", declineCall);
 // Signaling events
 // ============================================================
 socket.on("call-answered", async ({ answer }) => {
+  console.log("📥 Call answered");
   if (!peerConnection) return;
   await peerConnection.setRemoteDescription(answer);
   setStatus("connecting");
@@ -308,14 +331,16 @@ socket.on("ice-candidate", async ({ candidate }) => {
   try { await peerConnection.addIceCandidate(candidate); } catch (e) { }
 });
 
-socket.on("call-ended", () => cleanupCall());
+socket.on("call-ended", () => {
+  console.log("📴 Call ended by peer");
+  cleanupCall();
+});
 
 socket.on("user-unavailable", ({ to }) => {
-  // Auto-heal: Force our own socket to re-register just in case it dropped
-  if (myName) socket.emit("register", myName);
-
-  alert(to + " is not available or offline. Make sure their tab is open and they clicked 'Enter Kaleo'.");
+  alert(to + " is not available or offline.");
   cleanupCall();
+  // Auto-heal: Force our own socket to re-register just in case
+  if (myName) socket.emit("register", myName);
 });
 
 // ============================================================
