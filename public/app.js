@@ -1,388 +1,161 @@
-﻿// ============================================================
-// KALEO — Vanilla JS WebRTC Client (Device ID Edition)
-// ============================================================
+﻿const socket = io();
+let myId, pc, localStream, peerId, pendingOffer, muted = false, camOff = false;
 
-const socket = io({
-  reconnection: true,
-  reconnectionAttempts: Infinity,
-  reconnectionDelay: 1000,
-  reconnectionDelayMax: 5000,
-});
-
-// --- DOM refs ---
-const joinScreen = document.getElementById("joinScreen");
-const callScreen = document.getElementById("callScreen");
-const incomingModal = document.getElementById("incomingModal");
-const dialPanel = document.getElementById("dialPanel");
-const videoGrid = document.getElementById("videoGrid");
-const controlsBar = document.getElementById("controlsBar");
-
-const myIdInput = document.getElementById("myId");
-const copyIdBtn = document.getElementById("copyIdBtn");
-const registerBtn = document.getElementById("registerBtn");
-const displayMyId = document.getElementById("displayMyId");
-
-const peerNameInput = document.getElementById("peerName");
-const videoCallBtn = document.getElementById("videoCallBtn");
-const voiceCallBtn = document.getElementById("voiceCallBtn");
-
-const localVideo = document.getElementById("localVideo");
-const remoteVideo = document.getElementById("remoteVideo");
-const remoteLabel = document.getElementById("remoteLabel");
-
-const muteBtn = document.getElementById("muteBtn");
-const camBtn = document.getElementById("camBtn");
-const hangupBtn = document.getElementById("hangupBtn");
-
-const statusDot = document.getElementById("statusDot");
-const statusText = document.getElementById("statusText");
-
-const callerName = document.getElementById("callerName");
-const acceptBtn = document.getElementById("acceptBtn");
-const declineBtn = document.getElementById("declineBtn");
-
-// --- State ---
-let myName = null;
-let peerConnection = null;
-let localStream = null;
-let remotePeerName = null;
-let pendingOffer = null;
-let muted = false;
-let camOff = false;
-
-// --- ICE config: Private Metered TURN (fixes mobile network blocking) ---
 const ICE_CONFIG = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun.relay.metered.ca:80" },
-    {
-      urls: "turn:global.relay.metered.ca:80",
-      username: "37c57fb8f7f7b17037d93382",
-      credential: "XnV0QcW3yIYC7vxo",
-    },
-    {
-      urls: "turn:global.relay.metered.ca:80?transport=tcp",
-      username: "37c57fb8f7f7b17037d93382",
-      credential: "XnV0QcW3yIYC7vxo",
-    },
-    {
-      urls: "turn:global.relay.metered.ca:443",
-      username: "37c57fb8f7f7b17037d93382",
-      credential: "XnV0QcW3yIYC7vxo",
-    },
-    {
-      urls: "turns:global.relay.metered.ca:443?transport=tcp",
-      username: "37c57fb8f7f7b17037d93382",
-      credential: "XnV0QcW3yIYC7vxo",
-    },
-  ],
-  // Note: iceCandidatePoolSize is intentionally removed to prevent mobile ICE failures
+    { urls: "turn:global.relay.metered.ca:80", username: "37c57fb8f7f7b17037d93382", credential: "XnV0QcW3yIYC7vxo" },
+    { urls: "turn:global.relay.metered.ca:80?transport=tcp", username: "37c57fb8f7f7b17037d93382", credential: "XnV0QcW3yIYC7vxo" },
+    { urls: "turn:global.relay.metered.ca:443", username: "37c57fb8f7f7b17037d93382", credential: "XnV0QcW3yIYC7vxo" },
+    { urls: "turns:global.relay.metered.ca:443?transport=tcp", username: "37c57fb8f7f7b17037d93382", credential: "XnV0QcW3yIYC7vxo" }
+  ]
 };
 
-// ============================================================
-// Device ID Generation
-// ============================================================
-function getOrCreateId() {
-  let savedId = localStorage.getItem("kaleo_id");
-  if (!savedId) {
-    const r1 = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const r2 = Math.random().toString(36).substring(2, 6).toUpperCase();
-    savedId = `Kal-${r1}-${r2}`;
-    localStorage.setItem("kaleo_id", savedId);
-  }
-  return savedId;
+const $ = (id) => document.getElementById(id);
+
+let saved = localStorage.getItem("kaleo_id");
+if (!saved) {
+  saved = `KAL-${Math.random().toString(36).substring(2,6).toUpperCase()}-${Math.random().toString(36).substring(2,6).toUpperCase()}`;
+  localStorage.setItem("kaleo_id", saved);
 }
+myId = saved;
+$("myId").value = myId;
+$("displayMyId").textContent = myId;
+$("copyBtn").onclick = () => navigator.clipboard.writeText(myId);
 
-// Initialize ID on load
-myName = getOrCreateId();
-if (myIdInput) myIdInput.value = myName;
-if (displayMyId) displayMyId.textContent = myName;
+$("registerBtn").onclick = () => {
+  socket.emit("register", myId);
+  $("joinScreen").style.display = "none";
+  $("callScreen").style.display = "flex";
+};
 
-if (copyIdBtn) {
-  copyIdBtn.addEventListener("click", () => {
-    navigator.clipboard.writeText(myName);
-    copyIdBtn.textContent = "✅";
-    setTimeout(() => copyIdBtn.textContent = "📋", 2000);
-  });
-}
-
-// ============================================================
-// UI helpers
-// ============================================================
-function setStatus(state) {
-  statusText.textContent = state;
-  statusDot.className = "status-dot";
-  if (state === "connected") statusDot.classList.add("connected");
-  if (state === "calling" || state === "ringing") statusDot.classList.add(state);
-}
-
-function showCallUI() {
-  dialPanel.hidden = true;
-  videoGrid.hidden = false;
-  controlsBar.hidden = false;
-}
-
-function hideCallUI() {
-  dialPanel.hidden = false;
-  videoGrid.hidden = true;
-  controlsBar.hidden = true;
-}
-
-// ============================================================
-// Socket Lifecycle & Reconnection
-// ============================================================
 socket.on("connect", () => {
-  console.log("✅ Socket connected:", socket.id);
-  if (myName && !joinScreen.hidden) {
-    socket.emit("register", myName);
-    console.log("🔁 Re-registered as:", myName);
-  }
+  if ($("joinScreen").style.display === "none") socket.emit("register", myId);
 });
 
-socket.on("disconnect", (reason) => {
-  console.warn("⚠️ Socket disconnected:", reason);
-  setStatus("offline");
-});
-
-// Keep-alive ping for mobile backgrounding
-setInterval(() => {
-  if (socket.connected) socket.emit("ping");
-}, 10000);
-
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && myName) {
-    if (!joinScreen.hidden) socket.emit("register", myName);
-    const shouldEnable = !camOff;
-    if (localStream) localStream.getVideoTracks().forEach((t) => (t.enabled = shouldEnable));
-  }
-});
-
-// ============================================================
-// Register
-// ============================================================
-registerBtn.addEventListener("click", () => {
-  socket.emit("register", myName);
-  joinScreen.hidden = true;
-  callScreen.hidden = false;
-  setStatus("idle");
-  console.log("📝 Registered as:", myName);
-});
-
-// ============================================================
-// Media
-// ============================================================
-async function getLocalMedia(withVideo = true) {
+async function getMedia(video) {
   try {
-    const constraints = {
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      video: withVideo ? { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 24 } } : false,
-    };
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    localStream = stream;
-    localVideo.srcObject = stream;
-    localVideo.play().catch(e => console.warn("Local video play error:", e));
-    return stream;
-  } catch (err) {
-    alert("Could not access camera/microphone: " + err.message);
-    throw err;
-  }
+    localStream = await navigator.mediaDevices.getUserMedia({ 
+      audio: { echoCancellation: true, noiseSuppression: true }, 
+      video: video ? { width: 640, height: 360 } : false 
+    });
+    $("localVideo").srcObject = localStream;
+    return true;
+  } catch(e) { alert("Camera/Mic error: " + e.message); return false; }
 }
 
-// ============================================================
-// Peer connection
-// ============================================================
-function createPeerConnection(remoteId) {
-  console.log("🔧 Creating RTCPeerConnection for:", remoteId);
-  const pc = new RTCPeerConnection(ICE_CONFIG);
-
-  localStream.getTracks().forEach((track) => {
-    console.log("  ➕ Adding track:", track.kind);
-    pc.addTrack(track, localStream);
-  });
-
-  pc.ontrack = (event) => {
-    console.log("📹 Remote track received:", event.track.kind);
-    if (remoteVideo.srcObject !== event.streams[0]) {
-      remoteVideo.srcObject = event.streams[0];
-      remoteVideo.play().catch((e) => console.warn("Remote video play error:", e));
-    }
+function createPeer(target) {
+  pc = new RTCPeerConnection(ICE_CONFIG);
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  
+  pc.ontrack = (e) => {
+    $("remoteVideo").srcObject = e.streams[0];
   };
 
-  pc.onicecandidate = (event) => {
-    if (event.candidate) {
-      console.log("❄️ Sending ICE candidate:", event.candidate.type);
-      socket.emit("ice-candidate", { to: remoteId, candidate: event.candidate });
-    }
+  pc.onicecandidate = (e) => {
+    if (e.candidate) socket.emit("ice-candidate", { to: target, candidate: e.candidate });
   };
 
   pc.onconnectionstatechange = () => {
-    console.log("🔌 PC state:", pc.connectionState);
-    if (["failed", "disconnected", "closed"].includes(pc.connectionState)) {
-      if (pc.connectionState !== "closed") cleanupCall();
-    }
-    if (pc.connectionState === "connected") setStatus("connected");
+    if (pc.connectionState === "connected") $("statusText").textContent = "Connected";
   };
-
-  try {
-    const caps = RTCRtpSender.getCapabilities("video");
-    if (caps) {
-      const efficient = caps.codecs.filter((c) => /AV1|VP9/.test(c.mimeType));
-      pc.getTransceivers().forEach((t) => {
-        if (t.sender.track && t.sender.track.kind === "video") {
-          t.setCodecPreferences([...efficient, ...caps.codecs]);
-        }
-      });
-    }
-  } catch (e) { console.warn("Codec preference failed:", e); }
-
-  return pc;
 }
 
-// ============================================================
-// Outgoing call
-// ============================================================
-async function startCall(withVideo) {
-  const peer = peerNameInput.value.trim().toUpperCase();
-  if (!peer) return alert("Enter a Kaleo ID");
-  if (peer === myName) return alert("You can't call yourself");
+async function startCall(video) {
+  const target = $("peerName").value.trim().toUpperCase();
+  if (!target) return alert("Enter an ID");
+  peerId = target;
+  $("remoteLabel").textContent = peerId;
+  
+  const ready = await getMedia(video);
+  if (!ready) return;
 
-  remotePeerName = peer;
-  remoteLabel.textContent = peer;
+  createPeer(target);
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  
+  $("statusText").textContent = "Connecting...";
+  $("dialPanel").style.display = "none";
+  $("videoGrid").style.display = "grid";
+  $("controlsBar").style.display = "flex";
 
-  try {
-    await getLocalMedia(withVideo);
-  } catch (err) {
-    return;
-  }
-
-  peerConnection = createPeerConnection(peer);
-  const offer = await peerConnection.createOffer();
-  await peerConnection.setLocalDescription(offer);
-
-  console.log("📞 Sending call to:", peer);
-  socket.emit("call-user", { from: myName, to: peer, offer });
-
-  showCallUI();
-  setStatus("calling");
+  socket.emit("call-user", { from: myId, to: target, offer });
 }
 
-videoCallBtn.addEventListener("click", () => startCall(true));
-voiceCallBtn.addEventListener("click", () => startCall(false));
+$("videoCallBtn").onclick = () => startCall(true);
+$("voiceCallBtn").onclick = () => startCall(false);
 
-// ============================================================
-// Incoming call
-// ============================================================
 socket.on("incoming-call", ({ from, offer }) => {
-  console.log("📲 Incoming call from:", from);
-  remotePeerName = from;
+  peerId = from;
   pendingOffer = offer;
-  callerName.textContent = from;
-  incomingModal.hidden = false;
-  setStatus("ringing");
+  $("callerName").textContent = from;
+  $("incomingModal").style.display = "flex";
 });
 
-acceptBtn.addEventListener("click", async () => {
-  incomingModal.hidden = true;
-  if (!pendingOffer) return;
-  remoteLabel.textContent = remotePeerName;
+$("acceptBtn").onclick = async () => {
+  $("incomingModal").style.display = "none";
+  $("remoteLabel").textContent = peerId;
+  
+  const ready = await getMedia(true);
+  if (!ready) return;
 
-  try {
-    await getLocalMedia(true);
-  } catch (err) {
-    declineCall();
-    return;
-  }
+  createPeer(peerId);
+  await pc.setRemoteDescription(pendingOffer);
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  
+  socket.emit("answer-call", { to: peerId, answer });
+  
+  $("dialPanel").style.display = "none";
+  $("videoGrid").style.display = "grid";
+  $("controlsBar").style.display = "flex";
+};
 
-  peerConnection = createPeerConnection(remotePeerName);
-  await peerConnection.setRemoteDescription(pendingOffer);
-  const answer = await peerConnection.createAnswer();
-  await peerConnection.setLocalDescription(answer);
+$("declineBtn").onclick = () => {
+  socket.emit("end-call", { to: peerId });
+  $("incomingModal").style.display = "none";
+};
 
-  console.log("✅ Sending answer to:", remotePeerName);
-  socket.emit("answer-call", { to: remotePeerName, answer });
-
-  showCallUI();
-  setStatus("connecting");
-  pendingOffer = null;
-});
-
-function declineCall() {
-  if (remotePeerName) socket.emit("end-call", { to: remotePeerName });
-  incomingModal.hidden = true;
-  pendingOffer = null;
-  remotePeerName = null;
-  setStatus("idle");
-}
-
-declineBtn.addEventListener("click", declineCall);
-
-// ============================================================
-// Signaling events
-// ============================================================
 socket.on("call-answered", async ({ answer }) => {
-  console.log("📥 Call answered");
-  if (!peerConnection) return;
-  await peerConnection.setRemoteDescription(answer);
-  setStatus("connecting");
+  await pc.setRemoteDescription(answer);
 });
 
 socket.on("ice-candidate", async ({ candidate }) => {
-  if (!peerConnection) return;
-  try { await peerConnection.addIceCandidate(candidate); } catch (e) { }
+  if (pc) await pc.addIceCandidate(candidate).catch(()=>{});
 });
 
-socket.on("call-ended", () => {
-  console.log("📴 Call ended by peer");
-  cleanupCall();
-});
-
+socket.on("call-ended", cleanup);
 socket.on("user-unavailable", ({ to }) => {
-  alert(to + " is not available or offline.");
-  cleanupCall();
-  // Auto-heal: Force our own socket to re-register just in case
-  if (myName) socket.emit("register", myName);
+  alert(to + " is offline.");
+  cleanup();
 });
 
-// ============================================================
-// Controls & Cleanup
-// ============================================================
-muteBtn.addEventListener("click", () => {
-  if (!localStream) return;
+$("hangupBtn").onclick = () => {
+  socket.emit("end-call", { to: peerId });
+  cleanup();
+};
+
+$("muteBtn").onclick = () => {
   muted = !muted;
-  localStream.getAudioTracks().forEach((t) => (t.enabled = !muted));
-  muteBtn.classList.toggle("off", muted);
-  muteBtn.textContent = muted ? "🔇" : "🎤";
-});
+  localStream.getAudioTracks().forEach(t => t.enabled = !muted);
+  $("muteBtn").style.background = muted ? "#EF4444" : "";
+};
 
-camBtn.addEventListener("click", () => {
-  if (!localStream) return;
+$("camBtn").onclick = () => {
   camOff = !camOff;
-  localStream.getVideoTracks().forEach((t) => (t.enabled = !camOff));
-  camBtn.classList.toggle("off", camOff);
-  camBtn.textContent = camOff ? "📷" : "📹";
-});
+  localStream.getVideoTracks().forEach(t => t.enabled = !camOff);
+  $("camBtn").style.background = camOff ? "#EF4444" : "";
+};
 
-hangupBtn.addEventListener("click", () => {
-  if (remotePeerName) socket.emit("end-call", { to: remotePeerName });
-  cleanupCall();
-});
-
-function cleanupCall() {
-  if (peerConnection) { peerConnection.close(); peerConnection = null; }
-  if (localStream) { localStream.getTracks().forEach((t) => t.stop()); localStream = null; }
-  localVideo.srcObject = null;
-  remoteVideo.srcObject = null;
-  remotePeerName = null;
-  pendingOffer = null;
-  muted = false; camOff = false;
-  muteBtn.classList.remove("off"); camBtn.classList.remove("off");
-  muteBtn.textContent = "🎤"; camBtn.textContent = "📹";
-  hideCallUI();
-  setStatus("idle");
+function cleanup() {
+  if (pc) pc.close();
+  if (localStream) localStream.getTracks().forEach(t => t.stop());
+  pc = null; localStream = null; peerId = null;
+  $("localVideo").srcObject = null;
+  $("remoteVideo").srcObject = null;
+  $("dialPanel").style.display = "flex";
+  $("videoGrid").style.display = "none";
+  $("controlsBar").style.display = "none";
+  $("statusText").textContent = "idle";
 }
-
-window.addEventListener("beforeunload", (e) => {
-  if (peerConnection && peerConnection.connectionState === "connected") {
-    e.preventDefault(); e.returnValue = "";
-  }
-});

@@ -9,18 +9,15 @@ app.use(express.static(path.join(__dirname, "public")));
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-const users = new Map(); // userId -> socketId
+const users = new Map();
 
 io.on("connection", (socket) => {
   console.log("Connected:", socket.id);
 
-  socket.on("register", (userId) => {
-    users.set(userId, socket.id);
-    socket.userId = userId;
-    console.log(`Registered: ${userId} -> ${socket.id}`);
+  socket.on("register", (id) => {
+    users.set(id, socket.id);
+    console.log(`Registered: ${id}`);
   });
-
-  socket.on("ping", () => { });
 
   socket.on("call-user", ({ from, to, offer }) => {
     const target = users.get(to);
@@ -47,14 +44,16 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    if (socket.userId) {
-      users.delete(socket.userId);
-      console.log(`Disconnected: ${socket.userId}`);
+    for (const [userId, socketId] of users) {
+      if (socketId === socket.id) {
+        users.delete(userId);
+        console.log(`Disconnected: ${userId}`);
+      }
     }
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🟣 Kaleo signal server running on http://localhost:${PORT}`);
+  console.log(`🟣 Kaleo signal server on :${PORT}`);
 });
