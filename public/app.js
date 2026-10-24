@@ -1,5 +1,5 @@
 ﻿// ============================================================
-// KALEO — Vanilla JS WebRTC Client
+// KALEO — Vanilla JS WebRTC Client (Device ID Edition)
 // ============================================================
 
 const socket = io({
@@ -7,7 +7,6 @@ const socket = io({
   reconnectionAttempts: Infinity,
   reconnectionDelay: 1000,
   reconnectionDelayMax: 5000,
-  transports: ["websocket", "polling"],
 });
 
 // --- DOM refs ---
@@ -18,8 +17,10 @@ const dialPanel = document.getElementById("dialPanel");
 const videoGrid = document.getElementById("videoGrid");
 const controlsBar = document.getElementById("controlsBar");
 
-const myNameInput = document.getElementById("myName");
+const myIdInput = document.getElementById("myId");
+const copyIdBtn = document.getElementById("copyIdBtn");
 const registerBtn = document.getElementById("registerBtn");
+const displayMyId = document.getElementById("displayMyId");
 
 const peerNameInput = document.getElementById("peerName");
 const videoCallBtn = document.getElementById("videoCallBtn");
@@ -49,7 +50,7 @@ let pendingOffer = null;
 let muted = false;
 let camOff = false;
 
-// --- ICE config: STUN + TURN (fixes NAT traversal) ---
+// --- ICE config: STUN + TURN ---
 const ICE_CONFIG = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
@@ -74,6 +75,33 @@ const ICE_CONFIG = {
 };
 
 // ============================================================
+// Device ID Generation
+// ============================================================
+function getOrCreateId() {
+  let savedId = localStorage.getItem("kaleo_id");
+  if (!savedId) {
+    const r1 = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const r2 = Math.random().toString(36).substring(2, 6).toUpperCase();
+    savedId = `Kal-${r1}-${r2}`;
+    localStorage.setItem("kaleo_id", savedId);
+  }
+  return savedId;
+}
+
+// Initialize ID on load
+myName = getOrCreateId();
+if (myIdInput) myIdInput.value = myName;
+if (displayMyId) displayMyId.textContent = myName;
+
+if (copyIdBtn) {
+  copyIdBtn.addEventListener("click", () => {
+    navigator.clipboard.writeText(myName);
+    copyIdBtn.textContent = "✅";
+    setTimeout(() => copyIdBtn.textContent = "📋", 2000);
+  });
+}
+
+// ============================================================
 // UI helpers
 // ============================================================
 function setStatus(state) {
@@ -96,12 +124,11 @@ function hideCallUI() {
 }
 
 // ============================================================
-// Socket lifecycle
+// Socket Lifecycle & Reconnection
 // ============================================================
 socket.on("connect", () => {
   console.log("✅ Socket connected:", socket.id);
-  // Re-register on every (re)connection so mobile tab resumes work
-  if (myName) {
+  if (myName && !joinScreen.hidden) {
     socket.emit("register", myName);
     console.log("🔁 Re-registered as:", myName);
   }
@@ -109,19 +136,25 @@ socket.on("connect", () => {
 
 socket.on("disconnect", (reason) => {
   console.warn("⚠️ Socket disconnected:", reason);
+  setStatus("offline");
 });
 
-socket.on("reconnect", (attempt) => {
-  console.log(`🔄 Reconnected after ${attempt} attempts`);
+setInterval(() => {
+  if (socket.connected) socket.emit("ping");
+}, 10000);
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && myName) {
+    if (!joinScreen.hidden) socket.emit("register", myName);
+    const shouldEnable = !camOff;
+    if (localStream) localStream.getVideoTracks().forEach((t) => (t.enabled = shouldEnable));
+  }
 });
 
 // ============================================================
 // Register
 // ============================================================
 registerBtn.addEventListener("click", () => {
-  const name = myNameInput.value.trim();
-  if (!name) return alert("Please enter a name");
-  myName = name;
   socket.emit("register", myName);
   joinScreen.hidden = true;
   callScreen.hidden = false;
@@ -129,27 +162,13 @@ registerBtn.addEventListener("click", () => {
   console.log("📝 Registered as:", myName);
 });
 
-myNameInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") registerBtn.click();
-});
-
 // ============================================================
 // Media
 // ============================================================
 async function getLocalMedia(withVideo = true) {
   const constraints = {
-    audio: {
-      echoCancellation: true,
-      noiseSuppression: true,
-      autoGainControl: true,
-    },
-    video: withVideo
-      ? {
-        width: { ideal: 640 },
-        height: { ideal: 360 },
-        frameRate: { ideal: 24 },
-      }
-      : false,
+    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    video: withVideo ? { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 24 } } : false,
   };
   const stream = await navigator.mediaDevices.getUserMedia(constraints);
   localStream = stream;
@@ -164,51 +183,26 @@ function createPeerConnection(remoteId) {
   console.log("🔧 Creating RTCPeerConnection for:", remoteId);
   const pc = new RTCPeerConnection(ICE_CONFIG);
 
-  // Add local tracks
-  localStream.getTracks().forEach((track) => {
-    console.log("  ➕ Adding track:", track.kind);
-    pc.addTrack(track, localStream);
-  });
+  localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
 
-  // Remote stream arrives
   pc.ontrack = (event) => {
-    console.log("📹 Remote track received:", event.track.kind);
     if (remoteVideo.srcObject !== event.streams[0]) {
       remoteVideo.srcObject = event.streams[0];
       remoteVideo.play().catch((e) => console.warn("play() failed:", e));
     }
   };
 
-  // ICE candidates
   pc.onicecandidate = (event) => {
-    if (event.candidate) {
-      console.log("❄️ Sending ICE candidate:", event.candidate.type);
-      socket.emit("ice-candidate", { to: remoteId, candidate: event.candidate });
-    } else {
-      console.log("❄️ ICE gathering complete");
-    }
+    if (event.candidate) socket.emit("ice-candidate", { to: remoteId, candidate: event.candidate });
   };
 
-  // ICE connection state
-  pc.oniceconnectionstatechange = () => {
-    console.log("🧊 ICE state:", pc.iceConnectionState);
-    if (pc.iceConnectionState === "failed") {
-      console.error("❌ ICE failed — TURN might be needed");
-    }
-  };
-
-  // Connection state
   pc.onconnectionstatechange = () => {
-    console.log("🔌 PC state:", pc.connectionState);
     if (["failed", "disconnected", "closed"].includes(pc.connectionState)) {
       if (pc.connectionState !== "closed") cleanupCall();
     }
-    if (pc.connectionState === "connected") {
-      setStatus("connected");
-    }
+    if (pc.connectionState === "connected") setStatus("connected");
   };
 
-  // Prefer AV1/VP9 for data savings
   try {
     const caps = RTCRtpSender.getCapabilities("video");
     if (caps) {
@@ -219,9 +213,7 @@ function createPeerConnection(remoteId) {
         }
       });
     }
-  } catch (e) {
-    console.warn("Codec preference failed:", e);
-  }
+  } catch (e) { }
 
   return pc;
 }
@@ -230,8 +222,8 @@ function createPeerConnection(remoteId) {
 // Outgoing call
 // ============================================================
 async function startCall(withVideo) {
-  const peer = peerNameInput.value.trim();
-  if (!peer) return alert("Enter a peer name");
+  const peer = peerNameInput.value.trim().toUpperCase();
+  if (!peer) return alert("Enter a Kaleo ID");
   if (peer === myName) return alert("You can't call yourself");
 
   remotePeerName = peer;
@@ -247,10 +239,7 @@ async function startCall(withVideo) {
   peerConnection = createPeerConnection(peer);
   const offer = await peerConnection.createOffer();
   await peerConnection.setLocalDescription(offer);
-
-  console.log("📞 Sending call to:", peer);
   socket.emit("call-user", { from: myName, to: peer, offer });
-
   showCallUI();
   setStatus("calling");
 }
@@ -262,7 +251,6 @@ voiceCallBtn.addEventListener("click", () => startCall(false));
 // Incoming call
 // ============================================================
 socket.on("incoming-call", ({ from, offer }) => {
-  console.log("📲 Incoming call from:", from);
   remotePeerName = from;
   pendingOffer = offer;
   callerName.textContent = from;
@@ -287,10 +275,7 @@ acceptBtn.addEventListener("click", async () => {
   await peerConnection.setRemoteDescription(pendingOffer);
   const answer = await peerConnection.createAnswer();
   await peerConnection.setLocalDescription(answer);
-
-  console.log("✅ Sending answer to:", remotePeerName);
   socket.emit("answer-call", { to: remotePeerName, answer });
-
   showCallUI();
   setStatus("connecting");
   pendingOffer = null;
@@ -310,7 +295,6 @@ declineBtn.addEventListener("click", declineCall);
 // Signaling events
 // ============================================================
 socket.on("call-answered", async ({ answer }) => {
-  console.log("📥 Call answered");
   if (!peerConnection) return;
   await peerConnection.setRemoteDescription(answer);
   setStatus("connecting");
@@ -318,26 +302,18 @@ socket.on("call-answered", async ({ answer }) => {
 
 socket.on("ice-candidate", async ({ candidate }) => {
   if (!peerConnection) return;
-  try {
-    await peerConnection.addIceCandidate(candidate);
-    console.log("❄️ Added remote ICE candidate");
-  } catch (e) {
-    console.warn("ICE error:", e);
-  }
+  try { await peerConnection.addIceCandidate(candidate); } catch (e) { }
 });
 
-socket.on("call-ended", () => {
-  console.log("📴 Call ended by peer");
-  cleanupCall();
-});
+socket.on("call-ended", () => cleanupCall());
 
 socket.on("user-unavailable", ({ to }) => {
-  alert(to + " is not available");
+  alert(to + " is not available or offline.");
   cleanupCall();
 });
 
 // ============================================================
-// Controls
+// Controls & Cleanup
 // ============================================================
 muteBtn.addEventListener("click", () => {
   if (!localStream) return;
@@ -360,53 +336,22 @@ hangupBtn.addEventListener("click", () => {
   cleanupCall();
 });
 
-// ============================================================
-// Cleanup
-// ============================================================
 function cleanupCall() {
-  if (peerConnection) {
-    peerConnection.close();
-    peerConnection = null;
-  }
-  if (localStream) {
-    localStream.getTracks().forEach((t) => t.stop());
-    localStream = null;
-  }
+  if (peerConnection) { peerConnection.close(); peerConnection = null; }
+  if (localStream) { localStream.getTracks().forEach((t) => t.stop()); localStream = null; }
   localVideo.srcObject = null;
   remoteVideo.srcObject = null;
   remotePeerName = null;
   pendingOffer = null;
-  muted = false;
-  camOff = false;
-  muteBtn.classList.remove("off");
-  camBtn.classList.remove("off");
-  muteBtn.textContent = "🎤";
-  camBtn.textContent = "📹";
+  muted = false; camOff = false;
+  muteBtn.classList.remove("off"); camBtn.classList.remove("off");
+  muteBtn.textContent = "🎤"; camBtn.textContent = "📹";
   hideCallUI();
   setStatus("idle");
 }
 
-// ============================================================
-// Data saver: pause outgoing video when tab is hidden
-// ============================================================
-document.addEventListener("visibilitychange", () => {
-  if (!localStream) return;
-  const shouldEnable = !document.hidden && !camOff;
-  localStream.getVideoTracks().forEach((t) => (t.enabled = shouldEnable));
-
-  // If tab comes back and we have a name, make sure we're registered
-  if (!document.hidden && myName && socket.connected) {
-    socket.emit("register", myName);
-    console.log("🔁 Tab visible — re-registered as:", myName);
-  }
-});
-
-// ============================================================
-// Warn on unload during a call
-// ============================================================
 window.addEventListener("beforeunload", (e) => {
   if (peerConnection && peerConnection.connectionState === "connected") {
-    e.preventDefault();
-    e.returnValue = "";
+    e.preventDefault(); e.returnValue = "";
   }
 });

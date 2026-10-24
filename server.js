@@ -1,9 +1,4 @@
-﻿// ============================================================
-// KALEO — Signaling Server
-// Node.js + Express + Socket.IO
-// ============================================================
-
-const express = require("express");
+﻿const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const path = require("path");
@@ -14,16 +9,18 @@ app.use(express.static(path.join(__dirname, "public")));
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-// userId -> socketId
-const users = new Map();
+const users = new Map(); // userId -> socketId
 
 io.on("connection", (socket) => {
   console.log("Connected:", socket.id);
 
   socket.on("register", (userId) => {
     users.set(userId, socket.id);
+    socket.userId = userId;
     console.log(`Registered: ${userId} -> ${socket.id}`);
   });
+
+  socket.on("ping", () => { });
 
   socket.on("call-user", ({ from, to, offer }) => {
     const target = users.get(to);
@@ -36,31 +33,23 @@ io.on("connection", (socket) => {
 
   socket.on("answer-call", ({ to, answer }) => {
     const target = users.get(to);
-    if (target) {
-      io.to(target).emit("call-answered", { answer });
-    }
+    if (target) io.to(target).emit("call-answered", { answer });
   });
 
   socket.on("ice-candidate", ({ to, candidate }) => {
     const target = users.get(to);
-    if (target) {
-      io.to(target).emit("ice-candidate", { candidate });
-    }
+    if (target) io.to(target).emit("ice-candidate", { candidate });
   });
 
   socket.on("end-call", ({ to }) => {
     const target = users.get(to);
-    if (target) {
-      io.to(target).emit("call-ended");
-    }
+    if (target) io.to(target).emit("call-ended");
   });
 
   socket.on("disconnect", () => {
-    for (const [userId, socketId] of users) {
-      if (socketId === socket.id) {
-        users.delete(userId);
-        console.log(`Disconnected: ${userId}`);
-      }
+    if (socket.userId) {
+      users.delete(socket.userId);
+      console.log(`Disconnected: ${socket.userId}`);
     }
   });
 });
