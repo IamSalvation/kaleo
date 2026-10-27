@@ -1,5 +1,7 @@
 ﻿const socket = io();
 let myId, pc, localStream, peerId, pendingOffer, muted = false, camOff = false;
+let callStartTime = null;
+let timerInterval = null;
 
 const ICE_CONFIG = {
   iceServers: [
@@ -14,9 +16,10 @@ const ICE_CONFIG = {
 
 const $ = (id) => document.getElementById(id);
 
+// 1. Device ID
 let saved = localStorage.getItem("kaleo_id");
 if (!saved) {
-  saved = `KAL-${Math.random().toString(36).substring(2,6).toUpperCase()}-${Math.random().toString(36).substring(2,6).toUpperCase()}`;
+  saved = `KAL-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
   localStorage.setItem("kaleo_id", saved);
 }
 myId = saved;
@@ -24,31 +27,93 @@ $("myId").value = myId;
 $("displayMyId").textContent = myId;
 $("copyBtn").onclick = () => navigator.clipboard.writeText(myId);
 
+// --- Call History Logic ---
+function getHistory() {
+  return JSON.parse(localStorage.getItem("kaleo_history") || "[]");
+}
+
+function saveToHistory(id, type) {
+  let history = getHistory().filter(h => h.id !== id);
+  history.unshift({ id, type, time: Date.now() });
+  history = history.slice(0, 5); // Keep last 5
+  localStorage.setItem("kaleo_history", JSON.stringify(history));
+  renderHistory();
+}
+
+function renderHistory() {
+  const history = getHistory();
+  const container = $("historyList");
+  if (!container) return;
+
+  if (history.length === 0) {
+    container.innerHTML = '<p style="color:#666; font-size:12px; text-align:center;">No recent calls</p>';
+    return;
+  }
+
+  container.innerHTML = history.map(h => `
+    <div onclick="redial('${h.id}')" style="background:#1F2A44; padding:10px; border-radius:8px; margin-bottom:8px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <strong style="font-size:14px; color:#fff;">${h.id}</strong>
+        <div style="font-size:10px; color:#888;">${h.type === 'video' ? '📹 Video' : '📞 Voice'}</div>
+      </div>
+      <span style="color:#4F46E5; font-weight:bold; font-size:12px;">Redial</span>
+    </div>
+  `).join("");
+}
+
+window.redial = (id) => {
+  $("peerName").value = id;
+  startCall(true); // Default to video call
+};
+// ---------------------------
+
+// 2. Register
 $("registerBtn").onclick = () => {
   socket.emit("register", myId);
   $("joinScreen").style.display = "none";
   $("callScreen").style.display = "flex";
+  renderHistory(); // Load history when entering app
 };
 
 socket.on("connect", () => {
   if ($("joinScreen").style.display === "none") socket.emit("register", myId);
 });
 
+// 3. Media
 async function getMedia(video) {
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ 
-      audio: { echoCancellation: true, noiseSuppression: true }, 
-      video: video ? { width: 640, height: 360 } : false 
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true },
+      video: video ? { width: 640, height: 360 } : false
     });
     $("localVideo").srcObject = localStream;
     return true;
-  } catch(e) { alert("Camera/Mic error: " + e.message); return false; }
+  } catch (e) { alert("Camera/Mic error: " + e.message); return false; }
 }
 
+// 4. Call Timer
+function startTimer() {
+  callStartTime = Date.now();
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - callStartTime) / 1000);
+    const m = Math.floor(elapsed / 60).toString().padStart(2, "0");
+    const s = (elapsed % 60).toString().padStart(2, "0");
+    $("statusText").textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = null;
+  callStartTime = null;
+}
+
+// 5. Peer Connection
 function createPeer(target) {
   pc = new RTCPeerConnection(ICE_CONFIG);
   localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-  
+
   pc.ontrack = (e) => {
     $("remoteVideo").srcObject = e.streams[0];
   };
@@ -58,45 +123,62 @@ function createPeer(target) {
   };
 
   pc.onconnectionstatechange = () => {
-    if (pc.connectionState === "connected") $("statusText").textContent = "Connected";
+    if (pc.connectionState === "connected") {
+      startTimer();
+    }
   };
 }
 
+// 6. Outgoing Call
 async function startCall(video) {
   const target = $("peerName").value.trim().toUpperCase();
   if (!target) return alert("Enter an ID");
   peerId = target;
   $("remoteLabel").textContent = peerId;
-  
+
   const ready = await getMedia(video);
   if (!ready) return;
 
   createPeer(target);
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
-  
+
   $("statusText").textContent = "Connecting...";
   $("dialPanel").style.display = "none";
   $("videoGrid").style.display = "grid";
   $("controlsBar").style.display = "flex";
 
   socket.emit("call-user", { from: myId, to: target, offer });
+  saveToHistory(target, video ? "video" : "voice");
 }
 
 $("videoCallBtn").onclick = () => startCall(true);
 $("voiceCallBtn").onclick = () => startCall(false);
 
+// 7. Incoming Call
 socket.on("incoming-call", ({ from, offer }) => {
   peerId = from;
   pendingOffer = offer;
   $("callerName").textContent = from;
   $("incomingModal").style.display = "flex";
+
+  // Play ringtone
+  const ringtone = $("ringtone");
+  ringtone.currentTime = 0;
+  ringtone.play().catch(e => console.warn("Ringtone blocked:", e));
+
+  saveToHistory(from, "voice"); // Save to history as received
 });
 
 $("acceptBtn").onclick = async () => {
   $("incomingModal").style.display = "none";
+
+  // Stop ringtone
+  $("ringtone").pause();
+  $("ringtone").currentTime = 0;
+
   $("remoteLabel").textContent = peerId;
-  
+
   const ready = await getMedia(true);
   if (!ready) return;
 
@@ -104,9 +186,9 @@ $("acceptBtn").onclick = async () => {
   await pc.setRemoteDescription(pendingOffer);
   const answer = await pc.createAnswer();
   await pc.setLocalDescription(answer);
-  
+
   socket.emit("answer-call", { to: peerId, answer });
-  
+
   $("dialPanel").style.display = "none";
   $("videoGrid").style.display = "grid";
   $("controlsBar").style.display = "flex";
@@ -115,22 +197,33 @@ $("acceptBtn").onclick = async () => {
 $("declineBtn").onclick = () => {
   socket.emit("end-call", { to: peerId });
   $("incomingModal").style.display = "none";
+
+  // Stop ringtone
+  $("ringtone").pause();
+  $("ringtone").currentTime = 0;
 };
 
+// 8. Signaling
 socket.on("call-answered", async ({ answer }) => {
   await pc.setRemoteDescription(answer);
 });
 
 socket.on("ice-candidate", async ({ candidate }) => {
-  if (pc) await pc.addIceCandidate(candidate).catch(()=>{});
+  if (pc) await pc.addIceCandidate(candidate).catch(() => { });
 });
 
-socket.on("call-ended", cleanup);
+socket.on("call-ended", () => {
+  $("ringtone").pause();
+  $("ringtone").currentTime = 0;
+  cleanup();
+});
+
 socket.on("user-unavailable", ({ to }) => {
   alert(to + " is offline.");
   cleanup();
 });
 
+// 9. Controls
 $("hangupBtn").onclick = () => {
   socket.emit("end-call", { to: peerId });
   cleanup();
@@ -148,7 +241,9 @@ $("camBtn").onclick = () => {
   $("camBtn").style.background = camOff ? "#EF4444" : "";
 };
 
+// 10. Cleanup
 function cleanup() {
+  stopTimer();
   if (pc) pc.close();
   if (localStream) localStream.getTracks().forEach(t => t.stop());
   pc = null; localStream = null; peerId = null;
@@ -158,4 +253,5 @@ function cleanup() {
   $("videoGrid").style.display = "none";
   $("controlsBar").style.display = "none";
   $("statusText").textContent = "idle";
+  renderHistory();
 }

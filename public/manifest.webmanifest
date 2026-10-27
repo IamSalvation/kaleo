@@ -1,0 +1,17 @@
+﻿{
+  "name": "Kaleo — Called. Connected.",
+  "short_name": "Kaleo",
+  "description": "Crystal-clear voice and video calls with low data usage.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B1020",
+  "theme_color": "#4F46E5",
+  "icons": [
+    {
+      "src": "/kaleo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
