@@ -1,4 +1,7 @@
-﻿const socket = io();
+﻿// 🛑 TOGGLE THIS TO true WHEN YOU ARE READY FOR VIDEO CALLS
+const VIDEO_ENABLED = false;
+
+const socket = io();
 let myId, pc, localStream, peerId, pendingOffer, muted = false, camOff = false;
 let callStartTime = null;
 let timerInterval = null;
@@ -35,7 +38,7 @@ function getHistory() {
 function saveToHistory(id, type) {
   let history = getHistory().filter(h => h.id !== id);
   history.unshift({ id, type, time: Date.now() });
-  history = history.slice(0, 5); // Keep last 5
+  history = history.slice(0, 5);
   localStorage.setItem("kaleo_history", JSON.stringify(history));
   renderHistory();
 }
@@ -63,16 +66,26 @@ function renderHistory() {
 
 window.redial = (id) => {
   $("peerName").value = id;
-  startCall(true); // Default to video call
+  if (VIDEO_ENABLED) {
+    startCall(true);
+  } else {
+    startCall(false); // Force voice if video is disabled
+  }
 };
-// ---------------------------
 
 // 2. Register
 $("registerBtn").onclick = () => {
   socket.emit("register", myId);
   $("joinScreen").style.display = "none";
   $("callScreen").style.display = "flex";
-  renderHistory(); // Load history when entering app
+  renderHistory();
+
+  // Visual cue that video is disabled
+  if (!VIDEO_ENABLED) {
+    const vBtn = $("videoCallBtn");
+    vBtn.style.opacity = "0.4";
+    vBtn.title = "Video calls are coming soon!";
+  }
 };
 
 socket.on("connect", () => {
@@ -82,9 +95,12 @@ socket.on("connect", () => {
 // 3. Media
 async function getMedia(video) {
   try {
+    // Enforce the flag: if VIDEO_ENABLED is false, force video = false
+    const actualVideo = VIDEO_ENABLED ? video : false;
+
     localStream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true },
-      video: video ? { width: 640, height: 360 } : false
+      video: actualVideo ? { width: 640, height: 360 } : false
     });
     $("localVideo").srcObject = localStream;
     return true;
@@ -133,6 +149,7 @@ function createPeer(target) {
 async function startCall(video) {
   const target = $("peerName").value.trim().toUpperCase();
   if (!target) return alert("Enter an ID");
+
   peerId = target;
   $("remoteLabel").textContent = peerId;
 
@@ -145,15 +162,21 @@ async function startCall(video) {
 
   $("statusText").textContent = "Connecting...";
   $("dialPanel").style.display = "none";
-  $("videoGrid").style.display = "block"; // Changed to block for full screen video
+  $("videoGrid").style.display = "block";
   $("controlsBar").style.display = "flex";
 
   socket.emit("call-user", { from: myId, to: target, offer });
   saveToHistory(target, video ? "video" : "voice");
 }
 
-// Button handlers (IDs match the new HTML)
-$("videoCallBtn").onclick = () => startCall(true);
+// Button handlers
+$("videoCallBtn").onclick = () => {
+  if (!VIDEO_ENABLED) {
+    alert("📹 Video calls are coming soon! Please use Voice for now.");
+    return;
+  }
+  startCall(true);
+};
 $("voiceCallBtn").onclick = () => startCall(false);
 
 // 7. Incoming Call
@@ -163,43 +186,52 @@ socket.on("incoming-call", ({ from, offer }) => {
   $("callerName").textContent = from;
   $("incomingModal").style.display = "flex";
 
-  // Play ringtone
   const ringtone = $("ringtone");
   ringtone.currentTime = 0;
   ringtone.play().catch(e => console.warn("Ringtone blocked:", e));
 
-  saveToHistory(from, "voice"); // Save to history as received
+  saveToHistory(from, "voice");
 });
 
 $("acceptBtn").onclick = async () => {
   $("incomingModal").style.display = "none";
 
-  // Stop ringtone
   $("ringtone").pause();
   $("ringtone").currentTime = 0;
 
   $("remoteLabel").textContent = peerId;
 
-  const ready = await getMedia(true);
+  // Force audio-only if VIDEO_ENABLED is false
+  const allowVideo = VIDEO_ENABLED;
+  const ready = await getMedia(allowVideo);
   if (!ready) return;
 
   createPeer(peerId);
   await pc.setRemoteDescription(pendingOffer);
+
+  // Clean up the offer to remove video if disabled
+  if (!VIDEO_ENABLED) {
+    const transceivers = pc.getTransceivers();
+    transceivers.forEach(t => {
+      if (t.receiver.track.kind === "video") {
+        t.stop();
+      }
+    });
+  }
+
   const answer = await pc.createAnswer();
   await pc.setLocalDescription(answer);
 
   socket.emit("answer-call", { to: peerId, answer });
 
   $("dialPanel").style.display = "none";
-  $("videoGrid").style.display = "block"; // Changed to block for full screen video
+  $("videoGrid").style.display = "block";
   $("controlsBar").style.display = "flex";
 };
 
 $("declineBtn").onclick = () => {
   socket.emit("end-call", { to: peerId });
   $("incomingModal").style.display = "none";
-
-  // Stop ringtone
   $("ringtone").pause();
   $("ringtone").currentTime = 0;
 };
@@ -237,6 +269,7 @@ $("muteBtn").onclick = () => {
 };
 
 $("camBtn").onclick = () => {
+  if (!VIDEO_ENABLED) return; // Do nothing if video is disabled
   camOff = !camOff;
   localStream.getVideoTracks().forEach(t => t.enabled = !camOff);
   $("camBtn").style.background = camOff ? "#EF4444" : "";

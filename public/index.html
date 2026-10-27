@@ -34,19 +34,31 @@
   <!-- JOIN SCREEN -->
   <div id="joinScreen" class="flex-1 flex items-center justify-center p-6">
     <div class="bg-kaleo-surface border border-kaleo-border p-8 rounded-2xl w-full max-w-sm text-center shadow-2xl">
-      <img src="/kaleo.svg" alt="Kaleo Logo" width="80" height="80" class="mx-auto mb-4" />
-      <p class="text-kaleo-muted text-sm mb-6">Called. Connected.</p>
 
-      <label class="text-xs uppercase tracking-wider text-kaleo-muted block text-left mb-2">Your Kaleo ID</label>
+      <!-- Big Logo -->
+      <img src="/kaleo.svg" alt="Kaleo Logo" width="80" height="80" class="mx-auto mb-4" />
+      <h1 class="text-2xl font-bold mb-1">Kaleo</h1>
+      <p class="text-kaleo-muted text-sm mb-8">Called. Connected.</p>
+
+      <!-- ID Input -->
+      <label class="text-xs uppercase tracking-wider text-kaleo-muted block text-left mb-2 font-bold">Your Kaleo
+        ID</label>
       <div class="flex gap-2 mb-6">
         <input id="myId" readonly
           class="w-full bg-kaleo-bg border border-kaleo-border rounded-xl px-4 py-3 text-center font-mono font-bold text-kaleo-primary outline-none" />
         <button id="copyBtn" type="button"
-          class="bg-kaleo-border hover:bg-slate-700 px-4 rounded-xl transition">📋</button>
+          class="bg-kaleo-border hover:bg-slate-700 px-4 rounded-xl transition flex items-center justify-center text-white">
+          <i data-lucide="copy" class="w-5 h-5"></i>
+        </button>
       </div>
+
+      <!-- Enter Button with Logo -->
       <button id="registerBtn"
-        class="w-full bg-kaleo-primary hover:bg-indigo-500 py-3 rounded-xl font-bold transition shadow-lg shadow-kaleo-primary/30">Enter
-        Kaleo</button>
+        class="w-full bg-kaleo-primary hover:bg-indigo-500 py-3 rounded-xl font-bold transition shadow-lg shadow-kaleo-primary/30 flex items-center justify-center gap-3">
+        <img src="/kaleo.svg" alt="Kaleo" width="24" height="24" class="w-6 h-6" />
+        Enter Kaleo
+      </button>
+
     </div>
   </div>
 
@@ -143,17 +155,24 @@
     <source src="https://actions.google.com/sounds/v1/alarms/phone_alerts_and_rings.ogg" type="audio/ogg">
   </audio>
 
+  <!-- Incoming Call Modal -->
   <div id="incomingModal" class="fixed inset-0 bg-black/90 backdrop-blur flex items-center justify-center z-50 p-6"
     style="display:none;">
     <div class="bg-kaleo-surface border border-kaleo-border p-8 rounded-2xl w-full max-w-sm text-center">
-      <div class="text-4xl mb-2 animate-pulse">📞</div>
+      <div class="mb-4 flex justify-center text-kaleo-primary animate-pulse">
+        <i data-lucide="phone-incoming" class="w-12 h-12"></i>
+      </div>
       <h2 class="text-xl font-bold mb-1">Incoming Call</h2>
-      <p id="callerName" class="text-kaleo-muted mb-8 font-mono"></p>
+      <p id="callerName" class="text-kaleo-muted mb-8 font-mono text-lg"></p>
       <div class="flex gap-4">
         <button id="declineBtn"
-          class="flex-1 bg-kaleo-danger hover:bg-red-600 py-3 rounded-xl font-bold transition text-white">Decline</button>
+          class="flex-1 bg-kaleo-danger hover:bg-red-600 py-3 rounded-xl font-bold transition text-white flex justify-center items-center gap-2">
+          <i data-lucide="phone-off" class="w-5 h-5"></i> Decline
+        </button>
         <button id="acceptBtn"
-          class="flex-1 bg-kaleo-success hover:bg-green-600 py-3 rounded-xl font-bold transition text-white">Accept</button>
+          class="flex-1 bg-kaleo-success hover:bg-green-600 py-3 rounded-xl font-bold transition text-white flex justify-center items-center gap-2">
+          <i data-lucide="phone" class="w-5 h-5"></i> Accept
+        </button>
       </div>
     </div>
   </div>
