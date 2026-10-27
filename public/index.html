@@ -13,79 +13,136 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
+  <!-- Tailwind CSS (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            kaleo: {
+              bg: "#0B1020",
+              surface: "#131A2E",
+              border: "#1F2A44",
+              primary: "#4F46E5",
+              success: "#22C55E",
+              danger: "#EF4444",
+              muted: "#94A3B8"
+            }
+          },
+          fontFamily: {
+            sans: ["Inter", "system-ui", "sans-serif"],
+          }
+        }
+      }
+    }
+  </script>
+
   <link rel="stylesheet" href="style.css" />
 </head>
 
-<body>
-  <div id="joinScreen" class="screen">
-    <div class="card">
-      <img src="/kaleo.svg" alt="Kaleo Logo" width="96" height="96" style="margin: 0 auto 15px; display: block;" />
-      <p class="tagline">Called. Connected.</p>
-      <label>Your Kaleo ID</label>
-      <div style="display:flex; gap:8px; margin-bottom:15px;">
-        <input id="myId" readonly style="text-align:center;" />
-        <button id="copyBtn" type="button">📋</button>
+<body class="bg-kaleo-bg text-white h-[100dvh] flex flex-col overflow-hidden font-sans antialiased">
+
+  <!-- JOIN SCREEN -->
+  <div id="joinScreen" class="flex-1 flex items-center justify-center p-6">
+    <div class="bg-kaleo-surface border border-kaleo-border p-8 rounded-2xl w-full max-w-sm text-center shadow-2xl">
+      <img src="/kaleo.svg" alt="Kaleo Logo" width="80" height="80" class="mx-auto mb-4" />
+      <p class="text-kaleo-muted text-sm mb-6">Called. Connected.</p>
+
+      <label class="text-xs uppercase tracking-wider text-kaleo-muted block text-left mb-2">Your Kaleo ID</label>
+      <div class="flex gap-2 mb-6">
+        <input id="myId" readonly
+          class="w-full bg-kaleo-bg border border-kaleo-border rounded-xl px-4 py-3 text-center font-mono font-bold text-kaleo-primary outline-none" />
+        <button id="copyBtn" type="button"
+          class="bg-kaleo-border hover:bg-slate-700 px-4 rounded-xl transition">📋</button>
       </div>
-      <button id="registerBtn">Enter Kaleo</button>
+      <button id="registerBtn"
+        class="w-full bg-kaleo-primary hover:bg-indigo-500 py-3 rounded-xl font-bold transition shadow-lg shadow-kaleo-primary/30">Enter
+        Kaleo</button>
     </div>
   </div>
 
-  <div id="callScreen" class="screen" style="display:none;">
-    <header class="app-header">
-      <span>Kaleo</span>
-      <span id="statusText">idle</span>
+  <!-- CALL SCREEN -->
+  <div id="callScreen" class="flex-1 flex flex-col" style="display:none;">
+
+    <!-- Header -->
+    <header class="px-4 py-3 flex items-center justify-between border-b border-kaleo-border bg-kaleo-bg z-10">
+      <span class="font-bold tracking-tight text-lg">Kaleo</span>
+      <span id="statusText" class="text-xs font-medium text-kaleo-muted">idle</span>
     </header>
 
-    <main class="main">
-      <div id="dialPanel" class="dial-panel">
-        <h2>Ready to call</h2>
-        <input id="peerName" placeholder="Paste friend's ID" style="text-align:center; text-transform:uppercase;" />
-        <div class="btn-row">
-          <button id="videoCallBtn">📹 Video</button>
-          <button id="voiceCallBtn" style="background:#22C55E;">📞 Voice</button>
+    <!-- Main Content -->
+    <main class="flex-1 relative flex flex-col overflow-hidden">
+
+      <!-- Dial Panel -->
+      <div id="dialPanel" class="flex flex-col p-6 max-w-md mx-auto w-full mt-4 gap-4">
+        <div class="text-center mb-2">
+          <h2 class="text-2xl font-bold">Ready to call</h2>
+          <p class="text-kaleo-muted text-sm">Enter who you want to reach</p>
+        </div>
+
+        <input id="peerName" placeholder="Paste friend's ID"
+          class="w-full bg-kaleo-surface border border-kaleo-border rounded-xl px-4 py-3 text-center font-mono uppercase outline-none focus:border-kaleo-primary transition" />
+
+        <div class="flex gap-4 mt-2">
+          <button id="videoCallBtn"
+            class="flex-1 bg-kaleo-primary hover:bg-indigo-500 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-kaleo-primary/30">📹
+            Video</button>
+          <button id="voiceCallBtn"
+            class="flex-1 bg-kaleo-success hover:bg-green-600 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-kaleo-success/30">📞
+            Voice</button>
         </div>
 
         <!-- Call History List -->
-        <div style="margin-top:20px;">
-          <p style="font-size:11px; color:#888; text-transform:uppercase; margin-bottom:8px;">Recent Calls</p>
-          <div id="historyList"></div>
+        <div class="mt-4">
+          <p class="text-xs text-kaleo-muted uppercase tracking-wider mb-2 font-bold">Recent Calls</p>
+          <div id="historyList" class="space-y-2"></div>
         </div>
 
-        <p style="margin-top:15px; font-size:12px; color:#666; text-align:center;">Your ID: <strong
-            id="displayMyId"></strong></p>
+        <p class="mt-4 text-xs text-center text-kaleo-muted">Your ID: <span id="displayMyId"
+            class="font-bold text-kaleo-primary"></span></p>
       </div>
 
-      <div id="videoGrid" class="video-grid" style="display:none;">
-        <div class="video-tile">
-          <video id="localVideo" autoplay muted playsinline></video>
-          <span class="label">You</span>
-        </div>
-        <div class="video-tile">
-          <video id="remoteVideo" autoplay playsinline></video>
-          <span class="label" id="remoteLabel">Peer</span>
-        </div>
+      <!-- Video Grid -->
+      <div id="videoGrid" class="flex-1 relative bg-black" style="display:none;">
+        <video id="localVideo" autoplay muted playsinline
+          class="absolute top-4 right-4 w-24 h-36 sm:w-32 sm:h-48 object-cover rounded-xl border border-white/20 z-20 shadow-xl bg-kaleo-surface"></video>
+        <video id="remoteVideo" autoplay playsinline class="w-full h-full object-cover"></video>
+        <span id="remoteLabel"
+          class="absolute bottom-4 left-4 bg-black/60 backdrop-blur px-3 py-1 rounded-lg text-xs font-medium z-10">Peer</span>
       </div>
     </main>
 
-    <footer id="controlsBar" class="controls" style="display:none;">
-      <button id="muteBtn">🎤</button>
-      <button id="camBtn">📹</button>
-      <button id="hangupBtn" style="background:#EF4444;">End</button>
+    <!-- Controls -->
+    <footer id="controlsBar"
+      class="p-4 pb-6 flex justify-center gap-4 bg-kaleo-surface border-t border-kaleo-border z-10"
+      style="display:none; padding-bottom: max(1.5rem, env(safe-area-inset-bottom));">
+      <button id="muteBtn"
+        class="w-14 h-14 rounded-full bg-kaleo-border hover:bg-slate-700 flex items-center justify-center text-xl transition">🎤</button>
+      <button id="camBtn"
+        class="w-14 h-14 rounded-full bg-kaleo-border hover:bg-slate-700 flex items-center justify-center text-xl transition">📹</button>
+      <button id="hangupBtn"
+        class="w-auto px-6 h-14 rounded-full bg-kaleo-danger hover:bg-red-600 flex items-center justify-center font-bold transition shadow-lg shadow-red-500/30">End</button>
     </footer>
   </div>
 
-  <!-- Ringtone: plays on incoming call -->
+  <!-- Ringtone -->
   <audio id="ringtone" loop preload="auto">
     <source src="https://actions.google.com/sounds/v1/alarms/phone_alerts_and_rings.ogg" type="audio/ogg">
   </audio>
 
-  <div id="incomingModal" class="modal" style="display:none;">
-    <div class="card">
-      <h2>Incoming Call</h2>
-      <p id="callerName" style="font-size:20px; margin:15px 0;"></p>
-      <div style="display:flex; gap:10px;">
-        <button id="declineBtn" style="background:#EF4444; flex:1;">Decline</button>
-        <button id="acceptBtn" style="background:#22C55E; flex:1;">Accept</button>
+  <!-- Incoming Call Modal -->
+  <div id="incomingModal" class="fixed inset-0 bg-black/90 backdrop-blur flex items-center justify-center z-50 p-6"
+    style="display:none;">
+    <div class="bg-kaleo-surface border border-kaleo-border p-8 rounded-2xl w-full max-w-sm text-center">
+      <div class="text-4xl mb-2 animate-pulse">📞</div>
+      <h2 class="text-xl font-bold mb-1">Incoming Call</h2>
+      <p id="callerName" class="text-kaleo-muted mb-8 font-mono"></p>
+      <div class="flex gap-4">
+        <button id="declineBtn"
+          class="flex-1 bg-kaleo-danger hover:bg-red-600 py-3 rounded-xl font-bold transition">Decline</button>
+        <button id="acceptBtn"
+          class="flex-1 bg-kaleo-success hover:bg-green-600 py-3 rounded-xl font-bold transition">Accept</button>
       </div>
     </div>
   </div>
@@ -93,7 +150,6 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="app.js"></script>
 
-  <!-- Register Service Worker for PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/service-worker.js').catch(() => { });
