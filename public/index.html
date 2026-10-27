@@ -13,31 +13,19 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-  <!-- Tailwind CSS (CDN) -->
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            kaleo: {
-              bg: "#0B1020",
-              surface: "#131A2E",
-              border: "#1F2A44",
-              primary: "#4F46E5",
-              success: "#22C55E",
-              danger: "#EF4444",
-              muted: "#94A3B8"
-            }
-          },
-          fontFamily: {
-            sans: ["Inter", "system-ui", "sans-serif"],
+            kaleo: { bg: "#0B1020", surface: "#131A2E", border: "#1F2A44", primary: "#4F46E5", success: "#22C55E", danger: "#EF4444", muted: "#94A3B8" }
           }
         }
       }
     }
   </script>
-
   <link rel="stylesheet" href="style.css" />
 </head>
 
@@ -66,8 +54,11 @@
   <div id="callScreen" class="flex-1 flex flex-col" style="display:none;">
 
     <!-- Header -->
-    <header class="px-4 py-3 flex items-center justify-between border-b border-kaleo-border bg-kaleo-bg z-10">
-      <span class="font-bold tracking-tight text-lg">Kaleo</span>
+    <header class="px-6 py-4 flex items-center justify-between border-b border-kaleo-border bg-kaleo-bg z-10">
+      <div class="flex items-center gap-3">
+        <img src="/kaleo.svg" alt="Kaleo" width="28" height="28" />
+        <span class="font-bold tracking-tight text-lg">Kaleo</span>
+      </div>
       <span id="statusText" class="text-xs font-medium text-kaleo-muted">idle</span>
     </header>
 
@@ -75,31 +66,47 @@
     <main class="flex-1 relative flex flex-col overflow-hidden">
 
       <!-- Dial Panel -->
-      <div id="dialPanel" class="flex flex-col p-6 max-w-md mx-auto w-full mt-4 gap-4">
-        <div class="text-center mb-2">
-          <h2 class="text-2xl font-bold">Ready to call</h2>
+      <div id="dialPanel" class="flex flex-col p-6 max-w-md mx-auto w-full mt-10 gap-6">
+
+        <div class="text-center flex flex-col items-center gap-3">
+          <img src="/kaleo.svg" alt="Kaleo Logo" width="64" height="64" />
+          <h2 class="text-3xl font-bold">Ready to call</h2>
           <p class="text-kaleo-muted text-sm">Enter who you want to reach</p>
         </div>
 
-        <input id="peerName" placeholder="Paste friend's ID"
-          class="w-full bg-kaleo-surface border border-kaleo-border rounded-xl px-4 py-3 text-center font-mono uppercase outline-none focus:border-kaleo-primary transition" />
+        <input id="peerName" placeholder="PASTE FRIEND'S ID"
+          class="w-full bg-kaleo-surface border border-kaleo-border rounded-xl px-4 py-4 text-center font-mono uppercase outline-none focus:border-kaleo-primary transition text-lg" />
 
-        <div class="flex gap-4 mt-2">
-          <button id="videoCallBtn"
-            class="flex-1 bg-kaleo-primary hover:bg-indigo-500 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-kaleo-primary/30">📹
-            Video</button>
-          <button id="voiceCallBtn"
-            class="flex-1 bg-kaleo-success hover:bg-green-600 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-kaleo-success/30">📞
-            Voice</button>
+        <!-- Round Buttons (Voice First, Video Second) -->
+        <div class="flex items-center justify-center gap-10 mt-4">
+
+          <!-- Voice Button -->
+          <div class="flex flex-col items-center gap-3">
+            <button id="voiceCallBtn"
+              class="w-20 h-20 rounded-full bg-kaleo-success hover:bg-green-600 flex items-center justify-center text-white transition shadow-lg shadow-kaleo-success/30">
+              <i data-lucide="phone" class="w-8 h-8"></i>
+            </button>
+            <span class="text-sm font-medium text-kaleo-muted">Voice</span>
+          </div>
+
+          <!-- Video Button -->
+          <div class="flex flex-col items-center gap-3">
+            <button id="videoCallBtn"
+              class="w-20 h-20 rounded-full bg-kaleo-primary hover:bg-indigo-500 flex items-center justify-center text-white transition shadow-lg shadow-kaleo-primary/30">
+              <i data-lucide="video" class="w-8 h-8"></i>
+            </button>
+            <span class="text-sm font-medium text-kaleo-muted">Video</span>
+          </div>
+
         </div>
 
         <!-- Call History List -->
-        <div class="mt-4">
-          <p class="text-xs text-kaleo-muted uppercase tracking-wider mb-2 font-bold">Recent Calls</p>
+        <div class="mt-8">
+          <p class="text-xs text-kaleo-muted uppercase tracking-wider mb-3 font-bold">Recent Calls</p>
           <div id="historyList" class="space-y-2"></div>
         </div>
 
-        <p class="mt-4 text-xs text-center text-kaleo-muted">Your ID: <span id="displayMyId"
+        <p class="mt-8 text-xs text-center text-kaleo-muted">Your ID: <span id="displayMyId"
             class="font-bold text-kaleo-primary"></span></p>
       </div>
 
@@ -115,23 +122,27 @@
 
     <!-- Controls -->
     <footer id="controlsBar"
-      class="p-4 pb-6 flex justify-center gap-4 bg-kaleo-surface border-t border-kaleo-border z-10"
+      class="p-4 pb-6 flex justify-center gap-6 bg-kaleo-surface border-t border-kaleo-border z-10"
       style="display:none; padding-bottom: max(1.5rem, env(safe-area-inset-bottom));">
       <button id="muteBtn"
-        class="w-14 h-14 rounded-full bg-kaleo-border hover:bg-slate-700 flex items-center justify-center text-xl transition">🎤</button>
+        class="w-14 h-14 rounded-full bg-kaleo-border hover:bg-slate-700 flex items-center justify-center text-white transition">
+        <i data-lucide="mic" class="w-6 h-6"></i>
+      </button>
       <button id="camBtn"
-        class="w-14 h-14 rounded-full bg-kaleo-border hover:bg-slate-700 flex items-center justify-center text-xl transition">📹</button>
+        class="w-14 h-14 rounded-full bg-kaleo-border hover:bg-slate-700 flex items-center justify-center text-white transition">
+        <i data-lucide="video" class="w-6 h-6"></i>
+      </button>
       <button id="hangupBtn"
-        class="w-auto px-6 h-14 rounded-full bg-kaleo-danger hover:bg-red-600 flex items-center justify-center font-bold transition shadow-lg shadow-red-500/30">End</button>
+        class="w-auto px-6 h-14 rounded-full bg-kaleo-danger hover:bg-red-600 flex items-center justify-center font-bold transition shadow-lg shadow-red-500/30 text-white">
+        <i data-lucide="phone-off" class="w-6 h-6"></i>
+      </button>
     </footer>
   </div>
 
-  <!-- Ringtone -->
   <audio id="ringtone" loop preload="auto">
     <source src="https://actions.google.com/sounds/v1/alarms/phone_alerts_and_rings.ogg" type="audio/ogg">
   </audio>
 
-  <!-- Incoming Call Modal -->
   <div id="incomingModal" class="fixed inset-0 bg-black/90 backdrop-blur flex items-center justify-center z-50 p-6"
     style="display:none;">
     <div class="bg-kaleo-surface border border-kaleo-border p-8 rounded-2xl w-full max-w-sm text-center">
@@ -140,20 +151,24 @@
       <p id="callerName" class="text-kaleo-muted mb-8 font-mono"></p>
       <div class="flex gap-4">
         <button id="declineBtn"
-          class="flex-1 bg-kaleo-danger hover:bg-red-600 py-3 rounded-xl font-bold transition">Decline</button>
+          class="flex-1 bg-kaleo-danger hover:bg-red-600 py-3 rounded-xl font-bold transition text-white">Decline</button>
         <button id="acceptBtn"
-          class="flex-1 bg-kaleo-success hover:bg-green-600 py-3 rounded-xl font-bold transition">Accept</button>
+          class="flex-1 bg-kaleo-success hover:bg-green-600 py-3 rounded-xl font-bold transition text-white">Accept</button>
       </div>
     </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
   <script src="app.js"></script>
 
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/service-worker.js').catch(() => { });
     }
+    // Initialize Lucide icons
+    lucide.createIcons();
   </script>
 </body>
 

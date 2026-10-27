@@ -51,10 +51,10 @@ function renderHistory() {
   }
 
   container.innerHTML = history.map(h => `
-    <div onclick="redial('${h.id}')" style="background:#1F2A44; padding:10px; border-radius:8px; margin-bottom:8px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+    <div onclick="redial('${h.id}')" style="background:#1F2A44; padding:10px 14px; border-radius:12px; margin-bottom:8px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition: background 0.2s;" onmouseover="this.style.background='#2a3755'" onmouseout="this.style.background='#1F2A44'">
       <div>
         <strong style="font-size:14px; color:#fff;">${h.id}</strong>
-        <div style="font-size:10px; color:#888;">${h.type === 'video' ? '📹 Video' : '📞 Voice'}</div>
+        <div style="font-size:11px; color:#94A3B8; margin-top:2px;">${h.type === 'video' ? '📹 Video' : '📞 Voice'}</div>
       </div>
       <span style="color:#4F46E5; font-weight:bold; font-size:12px;">Redial</span>
     </div>
@@ -145,13 +145,14 @@ async function startCall(video) {
 
   $("statusText").textContent = "Connecting...";
   $("dialPanel").style.display = "none";
-  $("videoGrid").style.display = "grid";
+  $("videoGrid").style.display = "block"; // Changed to block for full screen video
   $("controlsBar").style.display = "flex";
 
   socket.emit("call-user", { from: myId, to: target, offer });
   saveToHistory(target, video ? "video" : "voice");
 }
 
+// Button handlers (IDs match the new HTML)
 $("videoCallBtn").onclick = () => startCall(true);
 $("voiceCallBtn").onclick = () => startCall(false);
 
@@ -190,7 +191,7 @@ $("acceptBtn").onclick = async () => {
   socket.emit("answer-call", { to: peerId, answer });
 
   $("dialPanel").style.display = "none";
-  $("videoGrid").style.display = "grid";
+  $("videoGrid").style.display = "block"; // Changed to block for full screen video
   $("controlsBar").style.display = "flex";
 };
 
