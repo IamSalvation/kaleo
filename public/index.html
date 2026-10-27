@@ -21,14 +21,6 @@
         extend: {
           colors: {
             kaleo: { bg: "#0B1020", surface: "#131A2E", border: "#1F2A44", primary: "#4F46E5", success: "#22C55E", danger: "#EF4444", muted: "#94A3B8" }
-          },
-          animation: {
-            "fade-in": "fade-in 0.3s ease-out",
-            "pulse-ring": "pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-          },
-          keyframes: {
-            "fade-in": { from: { opacity: "0", transform: "translateY(10px)" }, to: { opacity: "1", transform: "translateY(0)" } },
-            "pulse-ring": { "0%": { transform: "scale(0.95)", opacity: "0.5" }, "100%": { transform: "scale(1.1)", opacity: "0" } },
           }
         }
       }
@@ -41,25 +33,16 @@
 
   <!-- JOIN SCREEN -->
   <div id="joinScreen" class="flex-1 flex items-center justify-center p-6">
-    <div class="w-full max-w-sm flex flex-col items-center text-center animate-fade-in">
+    <div
+      class="bg-kaleo-surface border border-kaleo-border p-8 rounded-2xl w-full max-w-sm text-center shadow-2xl flex flex-col items-center">
 
-      <!-- Big Round Logo Button (The Clickable Area) -->
-      <div class="relative mb-6">
-        <!-- Pulsing ring behind the button -->
-        <span class="absolute inset-0 rounded-full bg-kaleo-primary/30 animate-pulse-ring"></span>
-        <!-- The Button itself -->
-        <button id="registerBtn"
-          class="relative w-32 h-32 rounded-full bg-kaleo-primary hover:bg-indigo-500 flex items-center justify-center transition shadow-2xl shadow-kaleo-primary/50 cursor-pointer">
-          <img src="/kaleo.svg" alt="Kaleo Logo" width="80" height="80" class="w-20 h-20" />
-        </button>
-      </div>
-
-      <!-- Text Below -->
-      <h1 class="text-2xl font-bold mb-1">Enter Kaleo</h1>
+      <!-- Top Logo and Text -->
+      <img src="/kaleo.svg" alt="Kaleo Logo" width="80" height="80" class="mb-4" />
+      <h1 class="text-2xl font-bold mb-1">Kaleo</h1>
       <p class="text-kaleo-muted text-sm mb-8">Called. Connected.</p>
 
-      <!-- ID Input (Kept simple and clean below) -->
-      <div class="w-full bg-kaleo-surface border border-kaleo-border p-6 rounded-2xl">
+      <!-- ID Input -->
+      <div class="w-full mb-8">
         <label class="text-xs uppercase tracking-wider text-kaleo-muted block text-left mb-2 font-bold">Your Kaleo
           ID</label>
         <div class="flex gap-2">
@@ -71,6 +54,15 @@
           </button>
         </div>
       </div>
+
+      <!-- Medium Round Button (80px) -->
+      <button id="registerBtn"
+        class="w-20 h-20 rounded-full bg-kaleo-primary hover:bg-indigo-500 flex items-center justify-center transition shadow-[0_0_30px_rgba(79,70,229,0.4)] hover:scale-105 mb-3 mt-2">
+        <img src="/kaleo.svg" alt="Enter" width="48" height="48" class="w-12 h-12" />
+      </button>
+
+      <!-- Text Below the Round Button -->
+      <h2 class="text-lg font-bold text-white tracking-wide">Enter Kaleo</h2>
 
     </div>
   </div>
